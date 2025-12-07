@@ -1,86 +1,137 @@
 package com.example.berita.fragment;
 
 import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ProgressBar;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Toast;
 
 import com.example.berita.R;
 import com.example.berita.adapter.NewsAdapter;
-import com.example.berita.model.NewsResponse;
-import com.example.berita.network.ApiClient;
-import com.example.berita.network.ApiEndpoint;
-import com.example.berita.utils.Constants;
+import com.example.berita.model.News;
+import com.example.berita.presenter.NewsPresenter;
+import com.example.berita.presenter.NewsPresenterImpl;
+import com.example.berita.presenter.NewsView;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import java.util.ArrayList;
+import java.util.List;
 
-public class HomeFragment extends Fragment {
+public class HomeFragment extends Fragment implements NewsView {
 
     private RecyclerView recyclerView;
     private NewsAdapter adapter;
+    private ProgressBar progressBar;
+    private NewsPresenter presenter;
+    private List<News> newsList;
 
     public HomeFragment() {}
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        presenter = new NewsPresenterImpl(this);
+        newsList = new ArrayList<>();
+    }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-
-        // layout fragment mengikuti tema
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-        recyclerView = view.findViewById(R.id.recyclerBerita);
-        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        // load berita dari API
-        loadBerita();
+        initViews(view);
+        setupRecyclerView();
+
+        // Load berita
+        presenter.getLatestNews("id", "id");
 
         return view;
     }
 
-    private void loadBerita() {
-        ApiEndpoint api = ApiClient.getClient().create(ApiEndpoint.class);
-        Call<NewsResponse> call = api.getBerita(Constants.API_KEY, "id", "id");
-
-        call.enqueue(new Callback<NewsResponse>() {
-            @Override
-            public void onResponse(Call<NewsResponse> call, Response<NewsResponse> response) {
-
-                if (!response.isSuccessful()) {
-                    showToast("Response error: " + response.code());
-                    return;
-                }
-
-                NewsResponse body = response.body();
-                if (body == null || body.getResults() == null) {
-                    showToast("Tidak ada data");
-                    return;
-                }
-
-                adapter = new NewsAdapter(getContext(), body.getResults());
-                recyclerView.setAdapter(adapter);
-            }
-
-            @Override
-            public void onFailure(Call<NewsResponse> call, Throwable t) {
-                showToast("Gagal: " + t.getMessage());
-                Log.e("API_ERROR", t.getMessage() != null ? t.getMessage() : "null");
-            }
-        });
+    private void initViews(View view) {
+        recyclerView = view.findViewById(R.id.recyclerBerita);
+        progressBar = view.findViewById(R.id.progressBar);
     }
 
-    private void showToast(String msg) {
-        if (getContext() != null) {
-            Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+    private void setupRecyclerView() {
+        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        adapter = new NewsAdapter(getContext(), newsList);
+        recyclerView.setAdapter(adapter);
+    }
+
+    @Override
+    public void showLoading() {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (progressBar != null) {
+                    progressBar.setVisibility(View.VISIBLE);
+                }
+                if (recyclerView != null) {
+                    recyclerView.setVisibility(View.GONE);
+                }
+            });
+        }
+    }
+
+    @Override
+    public void hideLoading() {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (progressBar != null) {
+                    progressBar.setVisibility(View.GONE);
+                }
+                if (recyclerView != null) {
+                    recyclerView.setVisibility(View.VISIBLE);
+                }
+            });
+        }
+    }
+
+    @Override
+    public void showNews(List<News> newsList) {
+        this.newsList.clear();
+        this.newsList.addAll(newsList);
+
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (adapter != null) {
+                    adapter.notifyDataSetChanged();
+                }
+            });
+        }
+    }
+
+    @Override
+    public void showError(String message) {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+            });
+        }
+    }
+
+    @Override
+    public void showEmpty() {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                Toast.makeText(getContext(), "Tidak ada berita", Toast.LENGTH_SHORT).show();
+            });
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (presenter != null) {
+            presenter.onDestroy();
         }
     }
 }

@@ -1,101 +1,170 @@
 package com.example.berita.fragment;
 
 import android.os.Bundle;
-import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.widget.SearchView;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.berita.R;
 import com.example.berita.adapter.NewsAdapter;
-import com.example.berita.model.NewsResponse;
-import com.example.berita.network.ApiClient;
-import com.example.berita.network.ApiEndpoint;
-import com.example.berita.utils.Constants;
+import com.example.berita.model.News;
+import com.example.berita.presenter.NewsPresenter;
+import com.example.berita.presenter.NewsPresenterImpl;
+import com.example.berita.presenter.NewsView;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import java.util.ArrayList;
+import java.util.List;
 
-public class SearchFragment extends Fragment {
+public class SearchFragment extends Fragment implements NewsView {
 
     private RecyclerView recyclerView;
     private NewsAdapter adapter;
     private SearchView searchView;
+    private ProgressBar progressBar;
+    private NewsPresenter presenter;
+    private List<News> newsList;
 
     public SearchFragment() {}
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        presenter = new NewsPresenterImpl(this);
+        newsList = new ArrayList<>();
+    }
+
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
 
         View view = inflater.inflate(R.layout.fragment_search, container, false);
 
-        recyclerView = view.findViewById(R.id.recyclerSearch);
-        searchView = view.findViewById(R.id.searchView);
-
-        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-
+        initViews(view);
+        setupRecyclerView();
         initSearch();
 
         return view;
     }
 
-    private void initSearch() {
-        searchView.clearFocus();
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                if (!TextUtils.isEmpty(query)) {
-                    doSearch(query);
-                }
-                return true;
-            }
+    private void initViews(View view) {
+        recyclerView = view.findViewById(R.id.recyclerSearch);
+        searchView = view.findViewById(R.id.searchView);
+        progressBar = view.findViewById(R.id.progressBarSearch);
+    }
 
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                return false;
-            }
-        });
+    private void setupRecyclerView() {
+        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        adapter = new NewsAdapter(getContext(), newsList);
+        recyclerView.setAdapter(adapter);
+    }
+
+    private void initSearch() {
+        if (searchView != null) {
+            searchView.clearFocus();
+            searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+                @Override
+                public boolean onQueryTextSubmit(String query) {
+                    if (!TextUtils.isEmpty(query.trim())) {
+                        doSearch(query.trim());
+                    }
+                    return true;
+                }
+
+                @Override
+                public boolean onQueryTextChange(String newText) {
+                    if (TextUtils.isEmpty(newText.trim())) {
+                        newsList.clear();
+                        if (adapter != null) {
+                            adapter.notifyDataSetChanged();
+                        }
+                    }
+                    return false;
+                }
+            });
+        }
     }
 
     private void doSearch(String keyword) {
-        ApiEndpoint api = ApiClient.getClient().create(ApiEndpoint.class);
-        Call<NewsResponse> call = api.searchBerita(Constants.API_KEY, keyword, "id", "id");
-
-        call.enqueue(new Callback<NewsResponse>() {
-            @Override
-            public void onResponse(Call<NewsResponse> call, Response<NewsResponse> response) {
-
-                if (!response.isSuccessful()) {
-                    showToast("Response error: " + response.code());
-                    return;
-                }
-                NewsResponse body = response.body();
-                if (body == null || body.getResults() == null || body.getResults().isEmpty()) {
-                    showToast("Tidak ada hasil untuk \"" + keyword + "\"");
-                    return;
-                }
-
-                adapter = new NewsAdapter(getContext(), body.getResults());
-                recyclerView.setAdapter(adapter);
-            }
-
-            @Override
-            public void onFailure(Call<NewsResponse> call, Throwable t) {
-                showToast("Gagal: " + t.getMessage());
-            }
-        });
+        presenter.searchNews(keyword, "id", "id");
     }
 
-    private void showToast(String msg) {
-        if (getContext() != null) Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+    @Override
+    public void showLoading() {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (progressBar != null) {
+                    progressBar.setVisibility(View.VISIBLE);
+                }
+                if (recyclerView != null) {
+                    recyclerView.setVisibility(View.GONE);
+                }
+            });
+        }
+    }
+
+    @Override
+    public void hideLoading() {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (progressBar != null) {
+                    progressBar.setVisibility(View.GONE);
+                }
+                if (recyclerView != null) {
+                    recyclerView.setVisibility(View.VISIBLE);
+                }
+            });
+        }
+    }
+
+    @Override
+    public void showNews(List<News> newsList) {
+        this.newsList.clear();
+        this.newsList.addAll(newsList);
+
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (adapter != null) {
+                    adapter.notifyDataSetChanged();
+                }
+            });
+        }
+    }
+
+    @Override
+    public void showError(String message) {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+            });
+        }
+    }
+
+    @Override
+    public void showEmpty() {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                Toast.makeText(getContext(), "Tidak ada hasil pencarian", Toast.LENGTH_SHORT).show();
+            });
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (presenter != null) {
+            presenter.onDestroy();
+        }
     }
 }

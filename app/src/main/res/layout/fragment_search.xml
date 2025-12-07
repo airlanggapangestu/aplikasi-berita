@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="8dp"
-    android:background="@color/white"> <!-- pakai warna default terang -->
+    android:background="@color/white">
 
     <androidx.appcompat.widget.SearchView
         android:id="@+id/searchView"
@@ -14,6 +14,14 @@
         android:iconifiedByDefault="false"
         android:background="@color/white"
         android:padding="4dp"/>
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progressBarSearch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerSearch"
