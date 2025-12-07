@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
 import com.example.berita.R;
+import com.example.berita.fragment.CategoriesFragment;
 import com.example.berita.fragment.HomeFragment;
 import com.example.berita.fragment.SearchFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -36,12 +37,15 @@ public class MainActivity extends AppCompatActivity {
         bottomNav.getMenu().findItem(R.id.nav_theme)
                 .setIcon(isDarkMode ? R.drawable.ic_moon : R.drawable.ic_sun);
 
+        // MainActivity.java - update navigation
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             Fragment fragment = null;
 
             if (id == R.id.nav_home) {
                 fragment = new HomeFragment();
+            } else if (id == R.id.nav_categories) {
+                fragment = new CategoriesFragment();
             } else if (id == R.id.nav_search) {
                 fragment = new SearchFragment();
             } else if (id == R.id.nav_theme) {
@@ -50,8 +54,6 @@ public class MainActivity extends AppCompatActivity {
                 SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
                 editor.putBoolean(KEY_DARK_MODE, isDarkMode);
                 editor.apply();
-
-                // Recreate activity to apply theme
                 recreate();
                 return true;
             }

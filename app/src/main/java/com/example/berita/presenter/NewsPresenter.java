@@ -12,4 +12,7 @@ public interface NewsPresenter {
 
     // Untuk membersihkan resource
     void onDestroy();
+
+    void getNewsByCategory(String category, String country, String language);
+    void getNewsByCategories(List<String> categories, String country, String language);
 }

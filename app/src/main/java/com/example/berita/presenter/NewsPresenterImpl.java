@@ -115,4 +115,45 @@ public class NewsPresenterImpl implements NewsPresenter {
     public void onDestroy() {
         newsView = null;
     }
+
+    @Override
+    public void getNewsByCategory(String category, String country, String language) {
+        newsView.showLoading();
+
+        Call<NewsResponse> call = apiEndpoint.getNewsByCategory(
+                Constants.API_KEY,
+                category,
+                country,
+                language
+        );
+
+        call.enqueue(new Callback<NewsResponse>() {
+            @Override
+            public void onResponse(Call<NewsResponse> call, Response<NewsResponse> response) {
+                newsView.hideLoading();
+
+                if (response.isSuccessful() && response.body() != null) {
+                    List<News> newsList = response.body().getResults();
+                    if (newsList != null && !newsList.isEmpty()) {
+                        newsView.showNews(newsList);
+                    } else {
+                        newsView.showEmpty();
+                    }
+                } else {
+                    newsView.showError("Error: " + response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<NewsResponse> call, Throwable t) {
+                newsView.hideLoading();
+                newsView.showError("Gagal: " + t.getMessage());
+            }
+        });
+    }
+
+    @Override
+    public void getNewsByCategories(List<String> categories, String country, String language) {
+        // Similar implementation for multiple categories
+    }
 }
